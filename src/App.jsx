@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import SearchBar from './SearchBar'
+import SearchBar from './SearchBar/SearchBar'
 import SearchResults from './SearchResult/SearchResults'
 import Playlist from './Playlist/Playlist'
 import './App.css'

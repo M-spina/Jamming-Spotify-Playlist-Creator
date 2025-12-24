@@ -11,7 +11,7 @@ export default function Tracklist({ tracks, onSelectFun }) {
   return (
     <div className="tracklist">
       {trackList.map((track) => (
-        <Track key={track.id} track={track} onSelectFun={onSelectFun} />
+        <Track key={track.id} track={track} onSelectFun={onSelectFun} isSelectable={true}/>
       ))}
     </div>
   );
