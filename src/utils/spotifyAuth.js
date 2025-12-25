@@ -65,10 +65,69 @@ async function exchangeCodeForToken(code) {
     const data = await response.json();
     localStorage.setItem('spotify_access_token', data.access_token);
     localStorage.setItem('spotify_refresh_token', data.refresh_token);
+    localStorage.setItem('spotify_token_expires_in', Date.now() + (data.expires_in * 1000)); 
     localStorage.removeItem('spotify_code_verifier');
 
 
     return data
 }
 
-export { getAuthUrl, exchangeCodeForToken };
+async function refreshAccessToken() {
+    const refreshToken = localStorage.getItem('spotify_refresh_token');
+    if (!refreshToken) {
+        throw new Error('No refresh token available');
+    }
+
+    const response = await fetch(TOKEN_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+            client_id: CLIENT_ID,
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error('Token refresh failed');
+    }
+
+    const data = await response.json();
+    localStorage.setItem('spotify_access_token', data.access_token);
+    localStorage.setItem('spotify_token_expires_in', Date.now() + (data.expires_in * 1000));
+    if(data.refresh_token) {
+        localStorage.setItem('spotify_refresh_token', data.refresh_token);
+    }
+
+    return data.access_token;
+}
+
+async function getAccessToken() {
+    const token = localStorage.getItem('spotify_access_token');
+    const expiresIn = localStorage.getItem('spotify_token_expires_in');
+
+    if(!token || !expiresIn || Date.now() > parseInt(expiresIn)) {
+        await refreshAccessToken();
+        return localStorage.getItem('spotify_access_token');
+    }
+    return token;
+}
+
+function isAuthenticated() {
+    const token = localStorage.getItem('spotify_access_token');
+    const expiresIn = localStorage.getItem('spotify_token_expires_in');
+    
+    return token && expiresIn && Date.now() < parseInt(expiresIn);
+}
+
+function logout() {
+    localStorage.removeItem('spotify_access_token');
+    localStorage.removeItem('spotify_refresh_token');
+    localStorage.removeItem('spotify_token_expires_in');
+    localStorage.removeItem('spotify_code_verifier');
+}
+
+
+export { getAuthUrl, exchangeCodeForToken, refreshAccessToken, getAccessToken, isAuthenticated, logout };
