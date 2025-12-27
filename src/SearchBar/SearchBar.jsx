@@ -8,6 +8,7 @@ export default function SearchBar({onSearch}) {
   };
 
   const handleSearch = () => {
+    if (!query.trim()) return;
     onSearch(query);
   };
 
@@ -19,7 +20,7 @@ export default function SearchBar({onSearch}) {
         onChange={handleInputChange}
         placeholder="Search..."
       />
-      <button onClick={handleSearch}>Search</button>
+      <button onClick={handleSearch} disabled={!query.trim()}>Search</button>
     </div>
   );
 }
