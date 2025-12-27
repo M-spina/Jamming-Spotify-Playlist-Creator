@@ -1,17 +1,10 @@
-import { useState, useEffect } from "react";
 import Track from "../Track/Track";
 
-export default function Tracklist({ tracks, onSelectFun }) {
-  const [trackList, setTrackList] = useState([]);
-
-  useEffect(() => {
-    setTrackList(tracks);
-  }, [tracks]);
-
+export default function Tracklist({ tracks, onSelectFun, isTrackSelected }) {
   return (
     <div className="tracklist">
-      {trackList.map((track) => (
-        <Track key={track.id} track={track} onSelectFun={onSelectFun} isSelectable={true}/>
+      {tracks.map((track) => (
+        <Track key={track.id} track={track} onSelectFun={onSelectFun} isSelected={isTrackSelected(track)} isSelectable={true} />
       ))}
     </div>
   );

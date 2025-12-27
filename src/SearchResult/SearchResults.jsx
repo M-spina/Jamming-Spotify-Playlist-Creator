@@ -1,17 +1,12 @@
-import {useEffect, useState} from 'react';
+
 import Tracklist from '../Tracklist/Tracklist';
 
-export default function SearchResults({results, onSelect}) {
-  const [searchResults, setSearchResults] = useState([]);
-
-  useEffect(() => {
-    setSearchResults(results);
-  }, [results]);
+export default function SearchResults({results, onSelect, isTrackSelected}) {
 
   return (
     <div className="search-results">
       <h2>Search Results</h2>
-      <Tracklist tracks={searchResults} onSelectFun={onSelect} />
+      <Tracklist tracks={results} onSelectFun={onSelect} isTrackSelected={isTrackSelected} />
     </div>
   );
 }

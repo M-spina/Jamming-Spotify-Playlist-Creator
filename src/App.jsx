@@ -19,6 +19,7 @@ function App() {
   };
 
   const handleSelectTrack = (track) => {
+    if (playlisttracks.some(t => t.id === track.id)) return; // Prevent duplicates
     setPlaylistTracks([...playlisttracks, track]);
   }
 
@@ -26,11 +27,13 @@ function App() {
     setPlaylistTracks(playlisttracks.filter(t => t.id !== track.id));
   }
 
+  const isTrackSelected = (track) => playlisttracks.some(t => t.id === track.id);
+
   return (
     <div className="App">
       <h1>Jammming</h1>
       <SearchBar onSearch={handleSearch} />
-      <SearchResults results={tracks} onSelect={handleSelectTrack} />
+      <SearchResults results={tracks} onSelect={handleSelectTrack} isTrackSelected={isTrackSelected} />
       <Playlist tracks={playlisttracks} onRemove={RemoveTrack} />
     </div>
   )
