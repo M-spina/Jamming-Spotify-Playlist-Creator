@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from './hooks/useAuth'
+import {useSpotify} from './hooks/useSpotify'
 import SearchBar from './SearchBar/SearchBar'
 import SearchResults from './SearchResult/SearchResults'
 import Playlist from './Playlist/Playlist'
@@ -7,18 +8,10 @@ import './App.css'
 
 function App() {
   const { isAuth, loading, error, login, logout } = useAuth();
-  const [tracks, setTracks] = useState([]);
+  const { searchResults, loading: spotifyLoading, error: spotifyError, handleSearch, createPlaylistFromTracks } = useSpotify(isAuth);
   const [playlisttracks, setPlaylistTracks] = useState([]);
 
-  const handleSearch = (query) => {
-    // Mock search results - replace with actual Spotify API call
-    const mockTracks = [
-      { id: 1, name: 'Song One', artist: 'Artist One', album: 'Album One' },
-      { id: 2, name: 'Song Two', artist: 'Artist Two', album: 'Album Two' },
-      { id: 3, name: 'Song Three', artist: 'Artist Three', album: 'Album Three' },
-    ];
-    setTracks(mockTracks);
-  };
+  
 
   const handleSelectTrack = (track) => {
     if (playlisttracks.some(t => t.id === track.id)) return; // Prevent duplicates
@@ -48,8 +41,10 @@ function App() {
       <h1>Jammming</h1>
       <button onClick={logout}>Logout</button>
       {error && <p style={{ color: 'red' }}>{error}</p>}
+      {spotifyError && <p style={{ color: 'red' }}>{spotifyError}</p>}
+      {spotifyLoading && <p>Searching...</p>}
       <SearchBar onSearch={handleSearch} />
-      <SearchResults results={tracks} onSelect={handleSelectTrack} isTrackSelected={isTrackSelected} />
+      <SearchResults results={searchResults} onSelect={handleSelectTrack} isTrackSelected={isTrackSelected} />
       <Playlist tracks={playlisttracks} onRemove={RemoveTrack} />
     </div>
   )
