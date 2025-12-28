@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useAuth } from './hooks/useAuth'
 import SearchBar from './SearchBar/SearchBar'
 import SearchResults from './SearchResult/SearchResults'
 import Playlist from './Playlist/Playlist'
 import './App.css'
 
 function App() {
+  const { isAuth, loading, error, login, logout } = useAuth();
   const [tracks, setTracks] = useState([]);
   const [playlisttracks, setPlaylistTracks] = useState([]);
 
@@ -29,9 +31,23 @@ function App() {
 
   const isTrackSelected = (track) => playlisttracks.some(t => t.id === track.id);
 
+
+  if (!isAuth) {
+    return (
+      <div className="App">
+        <h1>Jammming</h1>
+        {loading && <p>Loading...</p>}
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+        <button onClick={login}>Login with Spotify</button>
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       <h1>Jammming</h1>
+      <button onClick={logout}>Logout</button>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       <SearchBar onSearch={handleSearch} />
       <SearchResults results={tracks} onSelect={handleSelectTrack} isTrackSelected={isTrackSelected} />
       <Playlist tracks={playlisttracks} onRemove={RemoveTrack} />
