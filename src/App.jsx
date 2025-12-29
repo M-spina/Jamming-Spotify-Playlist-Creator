@@ -24,6 +24,11 @@ function App() {
 
   const isTrackSelected = (track) => playlisttracks.some(t => t.id === track.id);
 
+  const handleLogout = () => {
+    setPlaylistTracks([]);
+    logout();
+  }
+
 
   if (!isAuth) {
     return (
@@ -39,11 +44,11 @@ function App() {
   return (
     <div className="App">
       <h1>Jammming</h1>
-      <button onClick={logout}>Logout</button>
+      <button onClick={handleLogout}>Logout</button>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {spotifyError && <p style={{ color: 'red' }}>{spotifyError}</p>}
       {spotifyLoading && <p>Searching...</p>}
-      <SearchBar onSearch={handleSearch} />
+      <SearchBar onSearch={handleSearch} disabled={spotifyLoading} />
       <SearchResults results={searchResults} onSelect={handleSelectTrack} isTrackSelected={isTrackSelected} />
       <Playlist tracks={playlisttracks} onRemove={RemoveTrack} />
     </div>

@@ -1,6 +1,6 @@
 import {useState} from 'react';
 
-export default function SearchBar({onSearch}) {
+export default function SearchBar({onSearch, disabled = false}) {
   const [query, setQuery] = useState('');
 
   const handleInputChange = (e) => {
@@ -20,7 +20,7 @@ export default function SearchBar({onSearch}) {
         onChange={handleInputChange}
         placeholder="Search..."
       />
-      <button onClick={handleSearch} disabled={!query.trim()}>Search</button>
+      <button onClick={handleSearch} disabled={!query.trim() || disabled}>Search</button>
     </div>
   );
 }
