@@ -29,6 +29,15 @@ function App() {
     logout();
   }
 
+  const handleSavePlaylist = async (playlistName) => {
+    try{
+      await createPlaylistFromTracks(playlistName, playlisttracks);
+      setPlaylistTracks([]);
+      alert('Playlist saved to your Spotify account!');
+    }catch(err){
+      console.error("Error saving playlist:", err);
+    }
+  }
 
   if (!isAuth) {
     return (
@@ -50,7 +59,7 @@ function App() {
       {spotifyLoading && <p>Searching...</p>}
       <SearchBar onSearch={handleSearch} disabled={spotifyLoading} />
       <SearchResults results={searchResults} onSelect={handleSelectTrack} isTrackSelected={isTrackSelected} />
-      <Playlist tracks={playlisttracks} onRemove={RemoveTrack} />
+      <Playlist tracks={playlisttracks} onRemove={RemoveTrack} onSave={handleSavePlaylist} />
     </div>
   )
 }
