@@ -1,0 +1,36 @@
+.search-bar {
+  display: flex;
+  gap: 1rem;
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 1rem;
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  font-size: 1rem;
+  border-radius: 500px;
+  background-color: var(--spotify-gray);
+}
+
+.search-bar input:focus {
+  background-color: var(--spotify-light-gray);
+  box-shadow: 0 0 0 2px var(--spotify-green);
+}
+
+.search-bar button {
+  padding: 1rem 2.5rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .search-bar {
+    flex-direction: column;
+    padding: 0.5rem;
+  }
+  
+  .search-bar button {
+    width: 100%;
+  }
+}

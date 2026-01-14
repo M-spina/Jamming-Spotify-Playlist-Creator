@@ -1,5 +1,6 @@
 
 import Tracklist from '../Tracklist/Tracklist';
+import './SearchResults.css';
 
 export default function SearchResults({results, onSelect, isTrackSelected}) {
 

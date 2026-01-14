@@ -1,5 +1,7 @@
 
 
+import './Track.css';
+
 export default function Track({ track , onSelectFun, isSelected = false ,isSelectable = true, buttonText = "Remove" }) {
     const displayButtonText = isSelectable ? (isSelected ? "Selected" : "Select") : buttonText;
     

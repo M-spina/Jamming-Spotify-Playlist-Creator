@@ -1,0 +1,53 @@
+.playlist {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background-color: var(--spotify-gray);
+  border-radius: 8px;
+  border: 2px solid var(--spotify-green);
+}
+
+.playlist input[type="text"] {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  border-radius: 8px;
+  background-color: var(--spotify-light-gray);
+  color: var(--text-primary);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.playlist input[type="text"]:focus {
+  border-color: var(--spotify-green);
+  background-color: var(--spotify-dark);
+}
+
+.playlist .track {
+  background-color: var(--spotify-dark);
+  margin-bottom: 0.75rem;
+}
+
+.playlist .track:last-of-type {
+  margin-bottom: 1.5rem;
+}
+
+.playlist > button {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+  .playlist {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+  
+  .playlist input[type="text"] {
+    font-size: 1rem;
+    padding: 0.75rem 1rem;
+  }
+}

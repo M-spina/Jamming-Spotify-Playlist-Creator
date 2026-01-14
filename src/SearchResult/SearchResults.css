@@ -1,0 +1,19 @@
+.search-results {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background-color: var(--spotify-gray);
+  border-radius: 8px;
+}
+
+.search-results h2 {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--spotify-light-gray);
+}
+
+@media (max-width: 768px) {
+  .search-results {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+}

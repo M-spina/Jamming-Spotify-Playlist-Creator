@@ -1,4 +1,5 @@
 import Track from "../Track/Track";
+import './Tacklist.css';
 
 export default function Tracklist({ tracks, onSelectFun, isTrackSelected }) {
   return (

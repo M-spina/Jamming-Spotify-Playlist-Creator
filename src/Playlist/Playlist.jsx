@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Track from "../Track/Track";
+import './Playlist.css';
 
 export default function Playlist({ tracks , onRemove, onSave }) {
     const [playlistName, setPlaylistName] = useState("New Playlist");
