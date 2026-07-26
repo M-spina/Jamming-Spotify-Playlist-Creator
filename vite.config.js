@@ -7,4 +7,9 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',  // Bind to 127.0.0.1 instead of localhost
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.js',
+    clearMocks: true,
+  },
 })

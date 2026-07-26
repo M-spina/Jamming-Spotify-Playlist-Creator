@@ -1,27 +1,30 @@
-import {useState} from 'react';
-import './SearchBar.css';
+import { useState } from "react";
+import "./SearchBar.css";
 
-export default function SearchBar({onSearch, disabled = false}) {
-  const [query, setQuery] = useState('');
+export default function SearchBar({ onSearch, disabled = false }) {
+  const [query, setQuery] = useState("");
 
-  const handleInputChange = (e) => {
-    setQuery(e.target.value);
-  };
-
-  const handleSearch = () => {
+  const handleSubmit = (event) => {
+    event.preventDefault();
     if (!query.trim()) return;
-    onSearch(query);
+    void onSearch(query.trim());
   };
 
   return (
-    <div className="search-bar">
+    <form className="search-bar" onSubmit={handleSubmit} role="search">
+      <label className="visually-hidden" htmlFor="spotify-search">
+        Search Spotify for tracks
+      </label>
       <input
+        id="spotify-search"
         type="text"
         value={query}
-        onChange={handleInputChange}
-        placeholder="Search..."
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Search by track, artist, or album"
+        autoComplete="off"
+        disabled={disabled}
       />
-      <button onClick={handleSearch} disabled={!query.trim() || disabled}>Search</button>
-    </div>
+      <button type="submit" disabled={!query.trim() || disabled}>Search</button>
+    </form>
   );
 }

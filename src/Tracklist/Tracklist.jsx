@@ -1,11 +1,17 @@
 import Track from "../Track/Track";
-import './Tacklist.css';
+import "./Tracklist.css";
 
-export default function Tracklist({ tracks, onSelectFun, isTrackSelected }) {
+export default function Tracklist({ tracks, onSelect, isTrackSelected }) {
   return (
     <div className="tracklist">
       {tracks.map((track) => (
-        <Track key={track.id} track={track} onSelectFun={onSelectFun} isSelected={isTrackSelected(track)} isSelectable={true} />
+        <Track
+          key={track.id}
+          track={track}
+          onAction={onSelect}
+          isSelected={isTrackSelected(track)}
+          isSelectable
+        />
       ))}
     </div>
   );

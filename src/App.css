@@ -1,65 +1,124 @@
 .App {
+  width: min(100%, 1500px);
   min-height: 100vh;
-  background: linear-gradient(180deg, var(--spotify-darker) 0%, var(--spotify-dark) 100%);
-  padding: 2rem;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 4rem);
 }
 
-.App h1 {
-  text-align: center;
-  margin-bottom: 1rem;
-  background: linear-gradient(90deg, var(--spotify-green) 0%, #1ED760 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-header h1,
+.auth-screen h1 {
+  width: fit-content;
+  background: linear-gradient(120deg, #ffffff 5%, var(--spotify-green) 90%);
   background-clip: text;
+  color: transparent;
 }
 
-.App > button {
-  position: absolute;
-  top: 2rem;
-  right: 2rem;
-  padding: 0.5rem 1.5rem;
-  font-size: 0.75rem;
-  background-color: transparent;
-  border: 1px solid var(--spotify-green);
+.logout-button {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.logout-button:hover:not(:disabled) {
+  border-color: var(--spotify-green);
+  background: rgba(30, 215, 96, 0.1);
   color: var(--spotify-green);
 }
 
-.App > button:hover {
-  background-color: var(--spotify-green);
-  color: var(--spotify-darker);
+.intro {
+  max-width: 48rem;
+  margin-top: 0.8rem;
+  font-size: clamp(1rem, 2vw, 1.15rem);
 }
 
-.App > p {
+.app-status {
+  min-height: 3.25rem;
+  margin-top: 1rem;
+}
+
+.status-message,
+.operation-status {
+  width: fit-content;
+  max-width: 52rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-small);
+  padding: 0.75rem 0.9rem;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-primary);
+}
+
+.status-message--error {
+  border-color: color-mix(in srgb, var(--error) 42%, transparent);
+  background: color-mix(in srgb, var(--error) 9%, transparent);
+  color: var(--error);
+}
+
+.status-message--success {
+  border-color: color-mix(in srgb, var(--success) 38%, transparent);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+  color: var(--success);
+}
+
+.operation-status::before {
+  content: "";
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-right: 0.65rem;
+  border-radius: 50%;
+  background: var(--spotify-green);
+  box-shadow: 0 0 0 0.2rem rgba(30, 215, 96, 0.14);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr);
+  align-items: start;
+  gap: clamp(1rem, 2.4vw, 2rem);
+}
+
+.auth-screen {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  justify-items: center;
+  gap: 1.2rem;
   text-align: center;
-  margin: 1rem 0;
-  padding: 0.75rem;
-  border-radius: 4px;
-  background-color: rgba(255, 59, 48, 0.1);
-  color: #FF3B30;
 }
 
-/* Login screen */
-.App > button:only-of-type {
-  position: static;
-  display: block;
-  margin: 2rem auto;
-  padding: 1rem 3rem;
-  font-size: 1rem;
+.auth-screen > p:not(.status-message, .operation-status) {
+  max-width: 34rem;
+  font-size: 1.1rem;
 }
 
-/* Main content layout */
-.App > div {
-  max-width: 1400px;
-  margin: 0 auto;
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 600px) {
   .App {
     padding: 1rem;
   }
-  
-  .App > button {
-    top: 1rem;
-    right: 1rem;
+
+  .app-header {
+    align-items: center;
+  }
+
+  .logout-button {
+    padding: 0.65rem 0.9rem;
+    font-size: 0.7rem;
+  }
+
+  .app-status {
+    min-height: 2.5rem;
   }
 }

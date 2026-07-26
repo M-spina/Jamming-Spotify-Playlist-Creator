@@ -1,16 +1,33 @@
 
 
-import './Track.css';
+import "./Track.css";
 
-export default function Track({ track , onSelectFun, isSelected = false ,isSelectable = true, buttonText = "Remove" }) {
+export default function Track({
+    track,
+    onAction,
+    isSelected = false,
+    isSelectable = true,
+    buttonText = "Remove",
+    disabled = false,
+}) {
     const displayButtonText = isSelectable ? (isSelected ? "Selected" : "Select") : buttonText;
-    
+
     return (
-        <div className="track">
-            <h3>{track.name}</h3>
-            <p>{track.artist}</p>
-            <p>{track.album}</p>
-            <button onClick={() => onSelectFun(track)}>{displayButtonText}</button>
-        </div>
-    )
+        <article className={`track${isSelected ? " track--selected" : ""}`}>
+            <div className="track-copy">
+              <h3 title={track.name}>{track.name}</h3>
+              <p title={track.artist}>{track.artist}</p>
+              <p className="track-album" title={track.album}>{track.album}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onAction(track)}
+              disabled={disabled || (isSelectable && isSelected)}
+              aria-pressed={isSelectable ? isSelected : undefined}
+              aria-label={`${displayButtonText} ${track.name} by ${track.artist}`}
+            >
+              {displayButtonText}
+            </button>
+        </article>
+    );
 }
