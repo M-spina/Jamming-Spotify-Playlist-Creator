@@ -1,56 +1,123 @@
-import { useState, useEffect } from "react";
-import { getAuthUrl, exchangeCodeForToken, isAuthenticated, logout } from "../utils/spotifyAuth";
+import { useCallback, useEffect, useState } from "react";
+import {
+    clearOAuthTransientState,
+    exchangeCodeForToken,
+    getAuthUrl,
+    logout,
+    restoreSession,
+    SpotifyAuthError,
+    validateOAuthState,
+} from "../utils/spotifyAuth";
+
+const INITIAL_AUTH_STATE = {
+    status: "loading",
+    error: null,
+};
+
+function clearAuthCallbackParams() {
+    const url = new URL(window.location.href);
+    window.history.replaceState(
+        {},
+        document.title,
+        `${url.pathname}${url.hash}`,
+    );
+}
 
 export function useAuth() {
-    const [isAuth, setIsAuth] = useState(isAuthenticated());
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const [authState, setAuthState] = useState(INITIAL_AUTH_STATE);
 
-     // Handle callback on mount
-    useEffect(() =>{
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get('code');
-        const errorParam = params.get('error');
+    useEffect(() => {
+        let cancelled = false;
 
-        if (errorParam) {
-            setError(`Authentication Error: ${errorParam}`);
+        async function initializeAuth() {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get("code");
+            const errorParam = params.get("error");
+            const returnedState = params.get("state");
+            const hasCallback = Boolean(code || errorParam);
+
+            try {
+                if (hasCallback) {
+                    validateOAuthState(returnedState);
+
+                    if (errorParam) {
+                        clearOAuthTransientState();
+                        throw new SpotifyAuthError(
+                            `Spotify authorization was not completed: ${errorParam}.`,
+                            errorParam,
+                        );
+                    }
+
+                    await exchangeCodeForToken(code);
+                    if (!cancelled) {
+                        setAuthState({ status: "authenticated", error: null });
+                    }
+                    return;
+                }
+
+                const restored = await restoreSession();
+                if (!cancelled) {
+                    setAuthState({
+                        status: restored ? "authenticated" : "unauthenticated",
+                        error: null,
+                    });
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    setAuthState({
+                        status: "unauthenticated",
+                        error: error instanceof Error
+                            ? error.message
+                            : "Spotify authentication failed.",
+                    });
+                }
+            } finally {
+                if (hasCallback) clearAuthCallbackParams();
+            }
         }
-        if (code && !isAuth) {
-            setLoading(true);
-            exchangeCodeForToken(code)
-                .then(() => {
-                    setIsAuth(true);
-                    setError(null);
-                    // Clear URL params
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                })
-                .catch((err) => {
-                    setError(`Token Exchange Error: ${err.message}`);
-                })
-                .finally(() => {
-                    setLoading(false);
-                });
 
-        }
+        void initializeAuth();
 
-    },[isAuth]);
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
-    const login = async () =>{
-        setLoading(true);
+    const login = useCallback(async () => {
+        setAuthState({ status: "loading", error: null });
+
         try {
             const url = await getAuthUrl();
-            window.location.href = url; // Redirect to Spotify
-        } catch (err) {
-            setError(`Login Error: ${err.message}`);
-            setLoading(false);
+            window.location.assign(url);
+        } catch (error) {
+            setAuthState({
+                status: "unauthenticated",
+                error: error instanceof Error ? error.message : "Spotify login failed.",
+            });
         }
-    };
+    }, []);
 
-    const handleLogout = () => {
+    const handleLogout = useCallback(() => {
         logout();
-        setIsAuth(false);
-        setError(null);
-    };
+        setAuthState({ status: "unauthenticated", error: null });
+    }, []);
 
-    return { isAuth, loading, error, login, logout: handleLogout };
+    const invalidateSession = useCallback((error) => {
+        logout();
+        setAuthState({
+            status: "unauthenticated",
+            error: error instanceof Error
+                ? error.message
+                : "Your Spotify authorization has expired. Authorize again to continue.",
+        });
+    }, []);
+
+    return {
+        status: authState.status,
+        isAuthenticated: authState.status === "authenticated",
+        error: authState.error,
+        login,
+        logout: handleLogout,
+        invalidateSession,
+    };
 }

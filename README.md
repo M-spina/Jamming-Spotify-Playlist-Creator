@@ -1,142 +1,154 @@
-# Jammming - Spotify Playlist Creator
+# Jammming — Spotify Playlist Creator
 
-A modern web application that allows users to search for songs on Spotify and create custom playlists that are saved directly to their Spotify account. Built with React and the Spotify Web API.
+Jammming is a responsive React application for searching Spotify, collecting tracks, and saving them as a public, shareable playlist. It uses Spotify's Authorization Code flow with PKCE and the Spotify Web API endpoints introduced for Development Mode apps in 2026.
 
-## 🚀 Features
+## Screenshots
 
-- **Spotify Authentication** - Secure OAuth 2.0 with PKCE flow for client-side apps
-- **Search Functionality** - Search for tracks from Spotify's vast music library
-- **Custom Playlists** - Create and name your own playlists
-- **Track Selection** - Add and remove tracks from your playlist
-- **Visual Feedback** - See which tracks are already selected in your playlist
-- **Save to Spotify** - Save your curated playlists directly to your Spotify account
-- **Responsive Design** - Works seamlessly on desktop, tablet, and mobile devices
-- **Modern UI** - Spotify-inspired dark theme with smooth animations and transitions
+### Desktop
 
-## 🛠️ Technologies Used
+![Jammming desktop interface showing Spotify search results and a selected playlist](public/screenshots/jammming-desktop.jpg)
 
-### Frontend
-- **React** - UI component library
-- **Vite** - Fast build tool and development server
-- **JavaScript (ES6+)** - Modern JavaScript features
+### Mobile
 
-### APIs & Authentication
-- **Spotify Web API** - Search tracks, create playlists, manage user data
-- **OAuth 2.0 with PKCE** - Secure authentication flow for single-page applications
+![Jammming mobile interface showing responsive Spotify search results](public/screenshots/jammming-mobile.jpg)
 
-### Styling
-- **CSS3** - Custom styling with CSS variables
-- **CSS Grid & Flexbox** - Responsive layouts
-- **CSS Transitions & Animations** - Smooth user interactions
+## Features
 
-### Architecture
-- **Custom React Hooks** - `useAuth` for authentication, `useSpotify` for Spotify operations
-- **Component-based Architecture** - Modular, reusable components
-- **Unidirectional Data Flow** - Props-driven state management
+- OAuth 2.0 Authorization Code flow with PKCE and `state` verification
+- Access-token refresh on reload and a clear reauthorization path when a refresh token expires
+- Spotify track search with the current 10-result API limit
+- Duplicate-safe track selection across multiple searches
+- Explicit public playlist creation through `POST /me/playlists`
+- Ordered playlist item uploads through `POST /playlists/{id}/items`, batched in groups of 100
+- Separate search and save progress, errors, and accessible status announcements
+- Keyboard-friendly forms, visible focus styles, and responsive desktop/mobile layouts
 
-## 📋 Prerequisites
+## Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn
-- Spotify account
-- Spotify Developer Application (for Client ID)
+- Node.js `20.19+` or `22.12+`
+- npm
+- A Spotify account
+- A Spotify Developer application
+- For Spotify Development Mode, an active Premium subscription for the app owner
 
-## 🔧 Installation
+Development Mode applications can only be used by users who have been added to the app's user allowlist. Spotify may also apply current Development Mode user and app limits.
 
-1. Clone the repository:
+## Local setup
+
+1. Clone and install the project:
+
+   ```bash
+   git clone <repository-url>
+   cd Spotify-API-Project
+   npm install
+   ```
+
+2. In the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard), add this exact redirect URI:
+
+   ```text
+   http://127.0.0.1:5173/callback
+   ```
+
+   Spotify permits HTTP for explicit loopback IP addresses during local development. Do not replace `127.0.0.1` with `localhost`, and make sure the configured URI matches exactly.
+
+3. Copy the example environment file:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+4. Set your public Spotify client ID in `.env`:
+
+   ```dotenv
+   VITE_SPOTIFY_CLIENT_ID=your_spotify_client_id
+   VITE_SPOTIFY_REDIRECT_URI=http://127.0.0.1:5173/callback
+   ```
+
+   A Spotify client ID is a public OAuth identifier, not a client secret. Keeping it in environment configuration makes the project portable across developer apps and deployment URLs. Never add a Spotify client secret to this browser application.
+
+5. Start the application:
+
+   ```bash
+   npm run dev
+   ```
+
+6. Open `http://127.0.0.1:5173`, authorize with an allowed Spotify account, and start building a playlist.
+
+## Usage
+
+1. Authorize Jammming with Spotify.
+2. Search by track, artist, or album; Enter and the Search button both submit.
+3. Select tracks from one or more searches.
+4. Review the public-playlist notice, edit the playlist name, and choose **Create public playlist**.
+5. Wait for confirmed success before leaving the page. If Spotify creates the playlist but cannot add every track, Jammming preserves the selection and warns you to inspect Spotify before retrying.
+
+## Development commands
+
 ```bash
-git clone <repository-url>
-cd Spotify-API-Project
+npm run dev        # Vite development server
+npm test           # Run the automated test suite once
+npm run test:watch # Run tests in watch mode
+npm run lint       # ESLint
+npm run build      # Production build
+npm run preview    # Preview the production build
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+The Vitest and React Testing Library suite covers Spotify endpoint contracts, 100-item batching, save success and failure behavior, PKCE callback validation, startup refresh, `invalid_grant`, keyboard submission, and selected-track accessibility.
 
-3. Create a Spotify App:
-   - Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-   - Create a new app
-   - Add `http://127.0.0.1:5173/callback` to Redirect URIs
-   - Copy your Client ID
+## Project structure
 
-4. Update the Client ID:
-   - Open `src/utils/spotifyAuth.js`
-   - Replace `CLIENT_ID` with your Spotify Client ID
-
-5. Run the development server:
-```bash
-npm run dev
-```
-
-6. Open `http://127.0.0.1:5173` in your browser
-
-## 🎯 Usage
-
-1. **Login** - Click "Login with Spotify" to authenticate
-2. **Search** - Enter a song name, artist, or album in the search bar
-3. **Select Tracks** - Click "Select" on tracks you want to add to your playlist
-4. **Build Playlist** - Selected tracks appear in the playlist section
-5. **Name Playlist** - Edit the playlist name at the top of the playlist section
-6. **Save** - Click "Save to Spotify" to create the playlist in your account
-7. **Logout** - Click "Logout" when finished
-
-## 📁 Project Structure
-
-```
+```text
 src/
 ├── hooks/
-│   ├── useAuth.js          # Authentication state management
-│   └── useSpotify.js       # Spotify API operations
+│   ├── useAuth.js
+│   └── useSpotify.js
 ├── utils/
-│   ├── spotifyAuth.js      # OAuth PKCE authentication logic
-│   └── spotifyApi.js       # Spotify API wrapper functions
-├── components/
-│   ├── SearchBar/          # Search input component
-│   ├── SearchResults/      # Search results container
-│   ├── Tracklist/          # Track list grid
-│   ├── Track/              # Individual track card
-│   └── Playlist/           # Playlist builder
-├── App.jsx                 # Main application component
-├── App.css                 # App-level styles
-└── index.css               # Global styles and theme
+│   ├── spotifyAuth.js
+│   └── spotifyApi.js
+├── Playlist/
+├── SearchBar/
+├── SearchResults/
+├── Track/
+├── Tracklist/
+├── App.jsx
+├── App.css
+└── index.css
 ```
 
-## 🔐 Security
+Tests live beside the source modules they cover, with shared setup in `src/test/`.
 
-- Uses OAuth 2.0 Authorization Code Flow with PKCE
-- No client secrets exposed in client-side code
-- Secure token storage in localStorage
-- Automatic token refresh on expiration
-- HTTPS redirect URI validation
+## Authentication and security notes
 
-## 🌟 Future Work
+- Jammming is a browser-only application and uses PKCE, so it never requires or embeds a Spotify client secret.
+- OAuth `state` and the short-lived PKCE verifier are kept in `sessionStorage` and consumed during the callback.
+- Access and refresh tokens are persisted in `localStorage` for convenience across reloads. This storage is not protected from JavaScript running on the same origin, so an XSS vulnerability could expose those tokens.
+- Spotify access tokens are refreshed shortly before expiry. Refresh tokens issued to Developer Dashboard apps expire six months after authorization; `invalid_grant` clears the session and asks the user to authorize again.
+- The app retries an API request at most once after a 401 and does not loop on failed refreshes.
+- Authorization sessions are versioned. A session created before a required scope change is cleared so the user can grant the current scopes instead of encountering a delayed save failure.
 
-### Planned Features
-- [ ] Edit existing Spotify playlists
-- [ ] Delete tracks from existing playlists
-- [ ] Search filters (genre, year, popularity)
-- [ ] Track preview/playback
-- [ ] Drag-and-drop track reordering
-- [ ] Dark/Light theme toggle
-- [ ] Playlist templates/moods
-- [ ] Batch track operations
+## 2026 Spotify Web API compatibility
 
-### Enhancements
-- [ ] Add loading skeletons
-- [ ] Implement error boundaries
-- [ ] Add unit and integration tests
-- [ ] Improve accessibility (ARIA labels, keyboard navigation)
-- [ ] Add pagination for search results
-- [ ] Implement virtualization for large playlists
+This version uses:
 
+- `POST /v1/me/playlists` instead of the removed `/users/{id}/playlists`
+- `POST /v1/playlists/{id}/items` instead of the removed `/tracks` endpoint
+- `user-read-private` for Search and `playlist-modify-public` for public playlist creation
+- A maximum Search limit of 10, matching Spotify's current Development Mode API limit
 
-## 📝 License
+See Spotify's [February 2026 migration guide](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide), [playlist concepts](https://developer.spotify.com/documentation/web-api/concepts/playlists), [refresh-token guidance](https://developer.spotify.com/documentation/web-api/tutorials/refreshing-tokens), and [redirect URI requirements](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri).
 
-This project is for educational purposes and uses the Spotify Web API.
+## Known limitations
 
-## 🙏 Acknowledgments
+- Playlist creation and item insertion are separate Spotify requests. If item insertion fails, Spotify may retain an empty or partially populated playlist; the UI reports this rather than implying rollback.
+- Spotify documents that a playlist's Web API `public` field is not an access-control guarantee, and playlist access cannot currently be changed through the Web API. Jammming therefore creates public/shareable playlists explicitly and discloses that behavior before saving. Change visibility or access later in a Spotify client if required.
+- Tokens remain browser-managed in `localStorage`; a production application with stricter security requirements should consider a trusted backend.
+- Search currently shows one page of 10 results.
+- Spotify Development Mode availability depends on the app owner's Premium status and the app's allowed-user configuration.
 
-- [Spotify Web API Documentation](https://developer.spotify.com/documentation/web-api)
-- [Spotify Design Guidelines](https://developer.spotify.com/documentation/design)
-- React and Vite communities
+## Technology
+
+React 19, Vite 7, JavaScript, CSS, Spotify Web API, Vitest, and React Testing Library.
+
+## License
+
+This project is an educational portfolio project and uses the Spotify Web API under Spotify's applicable developer terms.
