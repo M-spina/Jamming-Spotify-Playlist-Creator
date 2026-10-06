@@ -25,3 +25,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local browser verification screenshots
+outputs/
+
+# Local Netlify CLI project linkage
+.netlify/

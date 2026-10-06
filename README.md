@@ -1,154 +1,115 @@
-# Jammming — Spotify Playlist Creator
+# Jammming — Playlist Builder
 
-Jammming is a responsive React application for searching Spotify, collecting tracks, and saving them as a public, shareable playlist. It uses Spotify's Authorization Code flow with PKCE and the Spotify Web API endpoints introduced for Development Mode apps in 2026.
-
-## Screenshots
-
-### Desktop
-
-![Jammming desktop interface showing Spotify search results and a selected playlist](public/screenshots/jammming-desktop.jpg)
-
-### Mobile
-
-![Jammming mobile interface showing responsive Spotify search results](public/screenshots/jammming-mobile.jpg)
+Jammming is a responsive React portfolio app. **Try demo** works immediately without a Spotify account, using clearly labelled fictional tracks and simulated saving. Allowlisted testers can also search Spotify and create public, shareable playlists.
 
 ## Features
 
-- OAuth 2.0 Authorization Code flow with PKCE and `state` verification
-- Access-token refresh on reload and a clear reauthorization path when a refresh token expires
-- Spotify track search with the current 10-result API limit
-- Duplicate-safe track selection across multiple searches
-- Explicit public playlist creation through `POST /me/playlists`
-- Ordered playlist item uploads through `POST /playlists/{id}/items`, batched in groups of 100
-- Separate search and save progress, errors, and accessible status announcements
-- Keyboard-friendly forms, visible focus styles, and responsive desktop/mobile layouts
+- Account-free demo with local search by track, artist, or album, duplicate-safe selection, removal, and a simulated playlist summary
+- Spotify Authorization Code flow with PKCE, one-use OAuth state, and explicit acceptance of versioned App Terms
+- Tokens stored in sessionStorage, same-tab reload recovery, and refresh-token rotation
+- Logout invalidates pending authentication, search, and save operations
+- Public playlist creation through `POST /me/playlists` and ordered item uploads through `POST /playlists/{id}/items`, in batches of up to 100
+- Spotify attribution and links beside real track metadata
+- Actionable access-denied, rate-limit, timeout, and uncertain-save messages
+- Public privacy, terms, and disconnect pages; keyboard-friendly controls and status announcements
 
-## Prerequisites
+## Requirements and setup
 
-- Node.js `20.19+` or `22.12+`
-- npm
-- A Spotify account
-- A Spotify Developer application
-- For Spotify Development Mode, an active Premium subscription for the app owner
+Use **Node.js 24** (the CI runtime) and npm. Node 22.13+ is also compatible with the dependency engine requirements.
 
-Development Mode applications can only be used by users who have been added to the app's user allowlist. Spotify may also apply current Development Mode user and app limits.
+```bash
+npm ci
+npm run dev
+```
 
-## Local setup
+Open `http://127.0.0.1:5173` and choose **Try demo**. Spotify environment configuration is optional for demo-only use.
 
-1. Clone and install the project:
+For real Spotify integration:
 
-   ```bash
-   git clone <repository-url>
-   cd Spotify-API-Project
-   npm install
-   ```
-
-2. In the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard), add this exact redirect URI:
-
-   ```text
-   http://127.0.0.1:5173/callback
-   ```
-
-   Spotify permits HTTP for explicit loopback IP addresses during local development. Do not replace `127.0.0.1` with `localhost`, and make sure the configured URI matches exactly.
-
-3. Copy the example environment file:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Set your public Spotify client ID in `.env`:
-
+1. Create a Spotify Developer application and register the exact local callback `http://127.0.0.1:5173/callback`. Spotify accepts explicit loopback IPs for local HTTP redirects; do not substitute `localhost`.
+2. Copy `.env.example` to `.env` and set your public client ID and redirect URI:
    ```dotenv
    VITE_SPOTIFY_CLIENT_ID=your_spotify_client_id
    VITE_SPOTIFY_REDIRECT_URI=http://127.0.0.1:5173/callback
    ```
+3. Add testers in the Developer Dashboard allowlist. Development Mode normally allows up to five authenticated users and requires the app owner to maintain Premium. Existing grandfathered allowances may differ. A user can complete OAuth login and still receive a 403 from the API.
+4. Read the policy pages, check agreement to App Terms, and choose **Login with Spotify — allowlisted testers**.
 
-   A Spotify client ID is a public OAuth identifier, not a client secret. Keeping it in environment configuration makes the project portable across developer apps and deployment URLs. Never add a Spotify client secret to this browser application.
+The client ID is a public OAuth identifier. **Never configure a client secret in this browser application.**
 
-5. Start the application:
+## Demo and real saves
 
-   ```bash
-   npm run dev
-   ```
+Demo tracks, artists, and albums are invented, with no copied Spotify catalogue data, playback, or fabricated Spotify links. Search and simulated save operate entirely in memory, without Spotify requests. Reloading or leaving demo resets its draft and summary. Entering demo logs out the local Spotify session.
 
-6. Open `http://127.0.0.1:5173`, authorize with an allowed Spotify account, and start building a playlist.
+Real saving explicitly creates a public, shareable playlist. Track insertion is a separate request and can use several batches. Only confirmed completion clears the draft. A timeout, lost response, or server failure can mean Spotify processed a write without the app receiving confirmation; check Spotify before retrying. A known playlist link is shown when available. Logging out or leaving during a save stops later requests but cannot undo those already processed.
 
-## Usage
-
-1. Authorize Jammming with Spotify.
-2. Search by track, artist, or album; Enter and the Search button both submit.
-3. Select tracks from one or more searches.
-4. Review the public-playlist notice, edit the playlist name, and choose **Create public playlist**.
-5. Wait for confirmed success before leaving the page. If Spotify creates the playlist but cannot add every track, Jammming preserves the selection and warns you to inspect Spotify before retrying.
-
-## Development commands
+## Commands and checks
 
 ```bash
-npm run dev        # Vite development server
-npm test           # Run the automated test suite once
-npm run test:watch # Run tests in watch mode
-npm run lint       # ESLint
-npm run build      # Production build
-npm run preview    # Preview the production build
+npm test
+npm run lint
+npm run build
+npm audit
+npm audit --omit=dev
+npm run preview -- --host 127.0.0.1
 ```
 
-The Vitest and React Testing Library suite covers Spotify endpoint contracts, 100-item batching, save success and failure behavior, PKCE callback validation, startup refresh, `invalid_grant`, keyboard submission, and selected-track accessibility.
+CI runs a clean `npm ci`, tests, lint, build, and both audits on Node 24 for pull requests and pushes to main. Its GitHub token has read-only repository permissions.
 
-## Project structure
+The test suite covers authentication generations and delayed responses after logout/new login, stale search/save completions, ordered batching and cancellation, current terms acceptance, legacy storage removal, blocked storage, deadlines including body reading, rate-limit cooldowns, safe links, and the end-to-end fictional demo.
 
-```text
-src/
-├── hooks/
-│   ├── useAuth.js
-│   └── useSpotify.js
-├── utils/
-│   ├── spotifyAuth.js
-│   └── spotifyApi.js
-├── Playlist/
-├── SearchBar/
-├── SearchResults/
-├── Track/
-├── Tracklist/
-├── App.jsx
-├── App.css
-└── index.css
-```
+## Authentication, privacy, and disconnecting
 
-Tests live beside the source modules they cover, with shared setup in `src/test/`.
+Tokens, expiry, authorization version, terms version, and temporary OAuth state/PKCE verifier are stored in **sessionStorage**, never newly written to localStorage. Known legacy localStorage keys are deleted on startup, with fresh authorization required. State/verifier are consumed during callbacks. A terms or authorization version change requires fresh agreement and login.
 
-## Authentication and security notes
+Session storage is readable by JavaScript on this origin; it does not provide HttpOnly protection. Browser session restoration can retain it. Logout and authorization invalidation cancel old work before clearing credentials and account-derived UI data. If storage is blocked, the app reports the problem and directs users to browser site-data controls.
 
-- Jammming is a browser-only application and uses PKCE, so it never requires or embeds a Spotify client secret.
-- OAuth `state` and the short-lived PKCE verifier are kept in `sessionStorage` and consumed during the callback.
-- Access and refresh tokens are persisted in `localStorage` for convenience across reloads. This storage is not protected from JavaScript running on the same origin, so an XSS vulnerability could expose those tokens.
-- Spotify access tokens are refreshed shortly before expiry. Refresh tokens issued to Developer Dashboard apps expire six months after authorization; `invalid_grant` clears the session and asks the user to authorize again.
-- The app retries an API request at most once after a 401 and does not loop on failed refreshes.
-- Authorization sessions are versioned. A session created before a required scope change is cleared so the user can grant the current scopes instead of encountering a delayed save failure.
+Local logout does not revoke account-level Spotify permission. Read **Disconnect Spotify** and remove the developer app from [Spotify's Apps page](https://www.spotify.com/account/apps/). Use Logout in any other open Jammming tabs too. These actions do not delete playlists already created in Spotify.
 
-## 2026 Spotify Web API compatibility
+Public pages are available without login:
 
-This version uses:
+- `/privacy.html`
+- `/terms.html`
+- `/disconnect.html`
 
-- `POST /v1/me/playlists` instead of the removed `/users/{id}/playlists`
-- `POST /v1/playlists/{id}/items` instead of the removed `/tracks` endpoint
-- `user-read-private` for Search and `playlist-modify-public` for public playlist creation
-- A maximum Search limit of 10, matching Spotify's current Development Mode API limit
+Jammming has no application backend, analytics, or application cookies. Privacy contact uses [public project issues](https://github.com/M-spina/Jamming-Spotify-Playlist-Creator/issues); never post credentials or personal account information.
 
-See Spotify's [February 2026 migration guide](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide), [playlist concepts](https://developer.spotify.com/documentation/web-api/concepts/playlists), [refresh-token guidance](https://developer.spotify.com/documentation/web-api/tutorials/refreshing-tokens), and [redirect URI requirements](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri).
+## Deployment checklist
 
-## Known limitations
+This change prepares a static application and includes Netlify build settings, the /callback rewrite, and basic response headers. Creating the Netlify project and verifying its actual settings remain deployment steps.
 
-- Playlist creation and item insertion are separate Spotify requests. If item insertion fails, Spotify may retain an empty or partially populated playlist; the UI reports this rather than implying rollback.
-- Spotify documents that a playlist's Web API `public` field is not an access-control guarantee, and playlist access cannot currently be changed through the Web API. Jammming therefore creates public/shareable playlists explicitly and discloses that behavior before saving. Change visibility or access later in a Spotify client if required.
-- Tokens remain browser-managed in `localStorage`; a production application with stricter security requirements should consider a trusted backend.
-- Search currently shows one page of 10 results.
-- Spotify Development Mode availability depends on the app owner's Premium status and the app's allowed-user configuration.
+1. Require passing checks and zero current full/production audit findings.
+2. Publish only the built `dist` directory through an HTTPS static host. Keep Vite development servers bound locally; `vite preview` is a local verification tool, not a production server.
+3. Set `VITE_SPOTIFY_CLIENT_ID` and the exact production HTTPS `VITE_SPOTIFY_REDIRECT_URI` at build time; rebuild when they change. Never set a client secret.
+4. Register that exact HTTPS callback in Spotify and configure the host to serve the application for `/callback`, preserving the OAuth query string. Direct requests to the three policy pages must serve their actual HTML files.
+5. Register public policy/website URLs in Spotify settings where supported.
+6. **Before public deployment**, verify the Privacy Policy's Netlify section against the actual project settings, logs, retention arrangements, cookies, and contact practices.
+7. Set suitable hosting headers, including `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, and a tested Content Security Policy. Do not export or record OAuth query strings in your own analytics or logs. Netlify infrastructure can receive the callback URL before the app removes its query string; do not promise that browser cleanup erases hosting logs.
+8. Verify demo on desktop/mobile with no Spotify account/configuration, and perform real login/search/save/logout with an allowlisted account. Inspect Spotify for partial playlists when testing failed saves.
+
+## Netlify setup after merge
+
+1. Import this GitHub repository into a new Netlify project and choose `main` as the production branch. The committed `netlify.toml` sets Node 24, build command `npm run build`, and publish directory `dist`. It rewrites only `/callback` to the app with HTTP 200; the public policy pages and assets remain real files.
+2. Choose a stable production site name or custom domain before configuring Spotify. For example, if the site is `https://your-site.netlify.app`, the callback is **`https://your-site.netlify.app/callback`**. Replace `your-site` with your real site name everywhere.
+3. In Netlify's project environment variables, set `VITE_SPOTIFY_CLIENT_ID` to the Spotify app's client ID and `VITE_SPOTIFY_REDIRECT_URI` to that exact callback. Scope them to production/builds where the UI supports it. Both are public build-time configuration; **never add a client secret or Spotify tokens**. Rebuild/redeploy after changing them. Demo works without either value.
+4. In Spotify's developer dashboard, add the same exact callback to **Redirect URIs**, and the root URL as **Website** where available. Register `/privacy.html` and `/terms.html` as public policy URLs where supported. Spotify redirects the user's browser here after authorization; this is not an inbound Spotify API server.
+5. Keep Deploy Previews and branch deploys demo-only by withholding production Spotify configuration in those contexts. OAuth uses origin-specific session storage: start login on the exact production origin that matches the callback, not a preview URL, domain alias, or HTTP variant.
+6. Before publishing, verify optional Web Analytics, Real User Monitoring, snippet injection, split testing, Forms, Identity, and Log Drains are not enabled for this app. Inspect actual browser requests/cookies after deployment. If you enable any optional service, update `public/privacy.html` to name it, describe the data/purpose, recipients, retention, and deletion/contact practices. Standard hosting request processing still exists even with optional analytics disabled.
+7. Review Netlify's applicable [data-processing arrangements](https://www.netlify.com/gdpr-ccpa/) and confirm infrastructure-log retention with Netlify when needed. Do not copy an old “30 days” claim without current evidence. The policy distinguishes hosting logs from sessionStorage and explains that Logout cannot remove host logs.
+8. After deployment, confirm `/callback` serves the app without a 404 or query-dropping redirect; check `/privacy.html`, `/terms.html`, `/disconnect.html`, response headers, demo, and allowlisted login/search/save/logout. Test with a fresh tab and the exact production URL. Check Spotify before retrying any unconfirmed save.
+
+Netlify Git deployments build automatically after pushes; they do not automatically wait for this repository's GitHub checks. Require passing checks before merging to `main` using GitHub branch protection. `.netlify/` is ignored so future CLI linkage does not enter commits.
+
+References: [Netlify Vite builds](https://docs.netlify.com/build/frameworks/framework-setup-guides/vite/), [rewrites](https://docs.netlify.com/manage/routing/redirects/rewrites-proxies/), [Web Analytics processing](https://docs.netlify.com/manage/monitoring/web-analytics/how-web-analytics-works/), and [traffic log fields](https://docs.netlify.com/manage/monitoring/log-drains/#traffic-log-output).
+
+## Spotify compatibility
+
+The app retains `user-read-private playlist-modify-public`, a ten-result search limit, `POST /v1/me/playlists`, and `POST /v1/playlists/{id}/items`. Playlist visibility/access should be managed in Spotify; the Web API `public` field is not a confidentiality guarantee.
+
+See [Spotify quota modes](https://developer.spotify.com/documentation/web-api/concepts/quota-modes), [2026 migration guidance](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide), [Developer Terms](https://developer.spotify.com/terms), [attribution policy](https://developer.spotify.com/policy), and [redirect requirements](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri).
+
+The white full Spotify logo is the unmodified `Full_Logo_White_RGB.svg` from Spotify's [official logo archive](https://developer.spotify.com/images/guidelines/design/2024-spotify-full-logo.zip). Brand usage follows [Spotify's guidelines](https://developer.spotify.com/documentation/design).
 
 ## Technology
 
-React 19, Vite 7, JavaScript, CSS, Spotify Web API, Vitest, and React Testing Library.
-
-## License
-
-This project is an educational portfolio project and uses the Spotify Web API under Spotify's applicable developer terms.
+React 19, Vite 7, JavaScript, CSS, Spotify Web API, Vitest, and React Testing Library. This is an educational portfolio project using Spotify under its applicable developer terms.

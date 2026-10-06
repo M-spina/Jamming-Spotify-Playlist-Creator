@@ -122,3 +122,25 @@
     min-height: 2.5rem;
   }
 }
+
+/* Demo entry, attribution, and public information */
+a { color: var(--success); text-underline-offset: .2em; }
+.header-actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: flex-end; }
+.secondary-button { border: 1px solid var(--border-strong); background: transparent; color: var(--text-primary); }
+.secondary-button:hover:not(:disabled) { background: var(--surface-hover); }
+.policy-links { display: flex; flex-wrap: wrap; gap: 1.2rem; margin-top: 2rem; font-size: .9rem; }
+.auth-screen .policy-links { justify-content: center; margin-top: .5rem; }
+.login-panel { display: grid; gap: .8rem; max-width: 34rem; padding: 1.2rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-medium); }
+.terms-checkbox { display: flex; align-items: center; justify-content: center; gap: .65rem; }
+.terms-checkbox input { width: 1.2rem; height: 1.2rem; accent-color: var(--spotify-green); }
+.development-notice { max-width: 34rem; font-size: .9rem; }
+.demo-notice, .demo-summary { margin-top: 1rem; padding: 1rem; border: 1px solid var(--border-strong); border-radius: var(--radius-medium); background: var(--surface); }
+.demo-summary ol { padding-left: 1.5rem; margin-top: .6rem; color: var(--text-secondary); line-height: 1.7; }
+.demo-summary h2 { font-size: 1.15rem; }
+.spotify-attribution { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; padding: .85rem 0; font-size: .85rem; color: var(--text-secondary); }
+.spotify-attribution img { object-fit: contain; }
+.status-message p { color: inherit; }
+.status-message a { display: inline-block; margin-top: .4rem; }
+.sample-label, .spotify-track-link { display: inline-block; font-size: .75rem; margin-top: .4rem; }
+.sample-label { color: var(--success); }
+@media (max-width: 600px) { .header-actions button { padding: .65rem .8rem; font-size: .65rem; } }

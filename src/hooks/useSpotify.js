@@ -1,147 +1,125 @@
-import { useCallback, useState } from "react";
-import {
-    addItemsToPlaylist,
-    createPlaylist,
-    searchTracks,
-} from "../utils/spotifyApi";
+import { useEffect, useRef, useState } from "react";
+import { playlistProviders, PlaylistSaveError } from "../utils/playlistProviders";
+import { demoTracks } from "../utils/demoApi";
+import { getSpotifyRetryDelay } from "../utils/spotifyApi";
 import { ReauthorizationRequiredError } from "../utils/spotifyAuth";
+import { assertNotCancelled, isCancellation, OperationCancelledError } from "../utils/request";
+export { PlaylistSaveError } from "../utils/playlistProviders";
 
-const PLAYLIST_BATCH_SIZE = 100;
-
-export class PlaylistSaveError extends Error {
-    constructor(stage, playlist, cause) {
-        let message = "Spotify could not create the playlist.";
-        if (stage === "add-items") {
-            message = "The playlist was created, but Spotify could not add every selected track.";
-        }
-
-        super(message, { cause });
-        this.name = "PlaylistSaveError";
-        this.stage = stage;
-        this.playlist = playlist;
-    }
-}
-
-function getErrorMessage(error, fallbackMessage) {
-    return error instanceof Error && error.message ? error.message : fallbackMessage;
-}
-
-export function useSpotify(isAuthenticated, onAuthInvalidated) {
-    const [searchResults, setSearchResults] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [searchError, setSearchError] = useState(null);
-    const [saveStatus, setSaveStatus] = useState(null);
-
-    const invalidateExpiredAuth = useCallback((error) => {
-        if (!(error instanceof ReauthorizationRequiredError)) return false;
-
-        setSearchResults([]);
-        setSearchError(null);
-        setSaveStatus(null);
-        onAuthInvalidated(error);
-        return true;
-    }, [onAuthInvalidated]);
-
-    const handleSearch = async (query) => {
-        if (!isAuthenticated || !query.trim() || isSearching) return [];
-
-        setIsSearching(true);
-        setSearchError(null);
-
-        try {
-            const results = await searchTracks(query);
-            setSearchResults(results);
-            return results;
-        } catch (error) {
-            if (!invalidateExpiredAuth(error)) {
-                setSearchError(getErrorMessage(error, "Spotify search failed. Please try again."));
-            }
-            return [];
-        } finally {
-            setIsSearching(false);
-        }
+export function useSpotify(mode, onAuthInvalidated) {
+  const [searchResults, setSearchResults] = useState(() => mode === "demo" ? demoTracks.slice(0, 10) : []);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [searchError, setSearchError] = useState(null);
+  const [saveStatus, setSaveStatus] = useState(null);
+  const [retryDelay, setRetryDelay] = useState(0);
+  const operations = useRef({ search: null, save: null });
+  useEffect(() => {
+    const active = operations.current;
+    return () => {
+      active.search?.abort();
+      active.save?.abort();
+      active.search = null;
+      active.save = null;
     };
+  }, [mode]);
+  useEffect(() => {
+    if (!retryDelay) return;
+    const timer = setTimeout(() => setRetryDelay(getSpotifyRetryDelay()), 1000);
+    return () => clearTimeout(timer);
+  }, [retryDelay]);
 
-    const createPlaylistFromTracks = async (playlistName, selectedTracks) => {
-        if (!isAuthenticated) {
-            throw new ReauthorizationRequiredError("Authorize with Spotify to save a playlist.");
-        }
-
-        if (!playlistName.trim() || !selectedTracks?.length) {
-            throw new PlaylistSaveError("create", null, new Error("A name and tracks are required."));
-        }
-
-        if (isSaving) {
-            throw new PlaylistSaveError("create", null, new Error("A playlist save is already running."));
-        }
-
-        setIsSaving(true);
-        setSaveStatus(null);
-        let playlist = null;
-
-        try {
-            try {
-                playlist = await createPlaylist(playlistName.trim());
-            } catch (error) {
-                if (invalidateExpiredAuth(error)) throw error;
-                throw new PlaylistSaveError("create", null, error);
-            }
-
-            const uris = selectedTracks.map((track) => track.uri);
-            try {
-                for (let index = 0; index < uris.length; index += PLAYLIST_BATCH_SIZE) {
-                    await addItemsToPlaylist(
-                        playlist.id,
-                        uris.slice(index, index + PLAYLIST_BATCH_SIZE),
-                    );
-                }
-            } catch (error) {
-                if (invalidateExpiredAuth(error)) throw error;
-                throw new PlaylistSaveError("add-items", playlist, error);
-            }
-
-            setSearchResults([]);
-            setSaveStatus({
-                type: "success",
-                message: `"${playlist.name || playlistName.trim()}" was saved to Spotify.`,
-            });
-            return playlist;
-        } catch (error) {
-            if (error instanceof ReauthorizationRequiredError) {
-                throw error;
-            }
-
-            const causeMessage = getErrorMessage(error.cause, "Please try again.");
-            const failureStage = error instanceof PlaylistSaveError ? error.stage : null;
-            setSaveStatus({
-                type: "error",
-                message: failureStage === "add-items"
-                    ? `Spotify created the playlist, but not every track was added. ${causeMessage} Check Spotify before retrying because another playlist may be created.`
-                    : `The playlist was not created. ${causeMessage}`,
-            });
-            throw error;
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const resetSpotifyState = () => {
-        setSearchResults([]);
-        setSearchError(null);
-        setSaveStatus(null);
+  function invalidate(error) {
+    if (!(error instanceof ReauthorizationRequiredError)) return false;
+    resetSpotifyState();
+    onAuthInvalidated(error);
+    return true;
+  }
+  function updateCooldown(error) {
+    const cause = error.cause || error;
+    if (cause.retryAfterSeconds != null) setRetryDelay(getSpotifyRetryDelay());
+  }
+  const provider = playlistProviders[mode];
+  async function handleSearch(query) {
+    if (!provider || !query.trim() || operations.current.search || operations.current.save || (mode === "spotify" && getSpotifyRetryDelay())) return [];
+    const controller = new AbortController();
+    operations.current.search = controller;
+    setIsSearching(true);
+    setSearchError(null);
+    try {
+      const results = await provider.searchTracks(query, { signal: controller.signal });
+      assertNotCancelled(controller.signal);
+      setSearchResults(results);
+      return results;
+    } catch (error) {
+      if (controller.signal.aborted || isCancellation(error)) return [];
+      if (!invalidate(error)) {
+        updateCooldown(error);
+        setSearchError(error.message || "Search failed. Please try again.");
+      }
+      return [];
+    } finally {
+      if (operations.current.search === controller) {
+        operations.current.search = null;
         setIsSearching(false);
+      }
+    }
+  }
+  async function createPlaylistFromTracks(name, tracks) {
+    if (!provider) throw new ReauthorizationRequiredError();
+    if (operations.current.save || operations.current.search) throw new Error("Wait for the current operation to finish.");
+    if (mode === "spotify" && getSpotifyRetryDelay()) throw new Error("Wait for Spotify's retry delay before saving.");
+    const controller = new AbortController();
+    operations.current.save = controller;
+    setIsSaving(true);
+    setSaveStatus(null);
+    try {
+      const playlist = await provider.savePlaylist(name, tracks.map(track => ({ ...track })), { signal: controller.signal });
+      assertNotCancelled(controller.signal);
+      if (operations.current.save !== controller) throw new OperationCancelledError();
+      setSaveStatus({
+        type: "success", playlist,
+        message: mode === "demo"
+          ? `Simulated save: "${playlist.name}". Nothing was sent to Spotify.`
+          : `"${playlist.name || name.trim()}" was saved to Spotify.`,
+      });
+      if (mode === "spotify") setSearchResults([]);
+      return playlist;
+    } catch (error) {
+      if (controller.signal.aborted || isCancellation(error)) throw new OperationCancelledError();
+      if (invalidate(error)) throw error;
+      updateCooldown(error);
+      const cause = error.cause || error;
+      let message = cause.message || "Saving failed. Please try again.";
+      if (error instanceof PlaylistSaveError) {
+        if (error.stage === "add-items") {
+          message = `Spotify created the playlist, but not every track was confirmed added. ${message} Check Spotify before retrying because another playlist may be created.`;
+        } else if (error.outcomeUnknown) {
+          message = "We couldn’t confirm whether Spotify created the playlist. Check Spotify before retrying. " + message;
+        } else {
+          message = "Spotify could not create the playlist. " + message;
+        }
+      }
+      setSaveStatus({ type: "error", message, playlist: error.playlist || null });
+      throw error;
+    } finally {
+      if (operations.current.save === controller) {
+        operations.current.save = null;
         setIsSaving(false);
-    };
-
-    return {
-        searchResults,
-        isSearching,
-        isSaving,
-        searchError,
-        saveStatus,
-        handleSearch,
-        createPlaylistFromTracks,
-        resetSpotifyState,
-    };
+      }
+    }
+  }
+  function resetSpotifyState() {
+    operations.current.search?.abort();
+    operations.current.save?.abort();
+    operations.current.search = null;
+    operations.current.save = null;
+    setSearchResults([]);
+    setSearchError(null);
+    setSaveStatus(null);
+    setIsSearching(false);
+    setIsSaving(false);
+    setRetryDelay(0);
+  }
+  return { searchResults, isSearching, isSaving, searchError, saveStatus, retryDelay, handleSearch, createPlaylistFromTracks, resetSpotifyState };
 }

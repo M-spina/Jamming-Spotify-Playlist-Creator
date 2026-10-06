@@ -1,126 +1,124 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("../utils/spotifyApi", () => ({
-  searchTracks: vi.fn(),
-  createPlaylist: vi.fn(),
-  addItemsToPlaylist: vi.fn(),
+vi.mock("../utils/spotifyApi", async importOriginal => ({
+  ...await importOriginal(), searchTracks: vi.fn(), createPlaylist: vi.fn(), addItemsToPlaylist: vi.fn(),
 }));
+import { searchTracks, createPlaylist, addItemsToPlaylist, SpotifyApiError } from "../utils/spotifyApi";
+import { logout, ReauthorizationRequiredError } from "../utils/spotifyAuth";
+import { realTracks, deferred } from "../test/fixtures";
+import { useSpotify } from "./useSpotify";
 
-import {
-  addItemsToPlaylist,
-  createPlaylist,
-  searchTracks,
-} from "../utils/spotifyApi";
-import { ReauthorizationRequiredError } from "../utils/spotifyAuth";
-import { PlaylistSaveError, useSpotify } from "./useSpotify";
-
-const tracks = Array.from({ length: 101 }, (_, index) => ({
-  id: `track-${index}`,
-  name: `Track ${index}`,
-  artist: "Artist",
-  album: "Album",
-  uri: `spotify:track:${index}`,
-}));
-
-describe("useSpotify", () => {
+describe("playlist operations and cancellation", () => {
   beforeEach(() => {
+    logout();
+    searchTracks.mockResolvedValue([]);
     createPlaylist.mockResolvedValue({ id: "playlist-1", name: "Test Mix" });
     addItemsToPlaylist.mockResolvedValue({ snapshot_id: "snapshot" });
-    searchTracks.mockResolvedValue([]);
   });
-
-  it("saves only after every ordered 100-item batch succeeds", async () => {
-    const onAuthInvalidated = vi.fn();
-    const { result } = renderHook(() => useSpotify(true, onAuthInvalidated));
-    let playlist;
-
-    await act(async () => {
-      playlist = await result.current.createPlaylistFromTracks(" Test Mix ", tracks);
-    });
-
-    expect(playlist).toEqual({ id: "playlist-1", name: "Test Mix" });
-    expect(createPlaylist).toHaveBeenCalledWith("Test Mix");
-    expect(addItemsToPlaylist).toHaveBeenCalledTimes(2);
-    expect(addItemsToPlaylist.mock.calls[0][1]).toHaveLength(100);
-    expect(addItemsToPlaylist.mock.calls[1][1]).toHaveLength(1);
-    expect(result.current.saveStatus).toEqual({
-      type: "success",
-      message: "\"Test Mix\" was saved to Spotify.",
-    });
+  it("confirms success only after ordered 100-item batches finish", async () => {
+    const { result } = renderHook(() => useSpotify("spotify", vi.fn()));
+    await act(async () => { await result.current.createPlaylistFromTracks(" Mix ", realTracks(101)); });
+    expect(createPlaylist.mock.calls[0][0]).toBe("Mix");
+    expect(addItemsToPlaylist.mock.calls.map(call => call[1].length)).toEqual([100, 1]);
+    expect(result.current.saveStatus.type).toBe("success");
   });
-
-  it("rejects creation failures and reports that nothing was created", async () => {
-    createPlaylist.mockRejectedValue(new Error("Account is not allowed"));
-    const { result } = renderHook(() => useSpotify(true, vi.fn()));
-    let thrownError;
-
-    await act(async () => {
-      try {
-        await result.current.createPlaylistFromTracks("Mix", tracks.slice(0, 1));
-      } catch (error) {
-        thrownError = error;
-      }
-    });
-
-    expect(thrownError).toBeInstanceOf(PlaylistSaveError);
-    expect(thrownError.stage).toBe("create");
+  it("reports explicit rejection without claiming an unknown response succeeded", async () => {
+    createPlaylist.mockRejectedValue(new SpotifyApiError("create playlist", 403, "Denied"));
+    const { result } = renderHook(() => useSpotify("spotify", vi.fn()));
+    await act(async () => { await expect(result.current.createPlaylistFromTracks("Mix", realTracks())).rejects.toMatchObject({ stage: "create" }); });
+    expect(result.current.saveStatus.message).toMatch(/could not create/);
     expect(addItemsToPlaylist).not.toHaveBeenCalled();
-    expect(result.current.saveStatus).toEqual({
-      type: "error",
-      message: "The playlist was not created. Account is not allowed",
-    });
   });
-
-  it("reports a partial failure without claiming rollback", async () => {
-    addItemsToPlaylist.mockRejectedValue(new Error("Items request failed"));
-    const { result } = renderHook(() => useSpotify(true, vi.fn()));
-    let thrownError;
-
-    await act(async () => {
-      try {
-        await result.current.createPlaylistFromTracks("Mix", tracks.slice(0, 1));
-      } catch (error) {
-        thrownError = error;
-      }
-    });
-
-    expect(thrownError).toMatchObject({
-      name: "PlaylistSaveError",
-      stage: "add-items",
-      playlist: { id: "playlist-1", name: "Test Mix" },
-    });
-    expect(result.current.saveStatus.type).toBe("error");
-    expect(result.current.saveStatus.message).toMatch(/playlist.*created/i);
-    expect(result.current.saveStatus.message).toMatch(/before retrying/i);
+  it("reports uncertain creation without asserting nothing was created", async () => {
+    createPlaylist.mockRejectedValue(new SpotifyApiError("create playlist", 0, "Timed out", { outcomeUnknown: true }));
+    const { result } = renderHook(() => useSpotify("spotify", vi.fn()));
+    await act(async () => { await expect(result.current.createPlaylistFromTracks("Mix", realTracks())).rejects.toMatchObject({ outcomeUnknown: true }); });
+    expect(result.current.saveStatus.message).toMatch(/couldn’t confirm whether Spotify created/);
+    expect(result.current.saveStatus.message).not.toMatch(/not created/);
   });
-
-  it("invalidates auth when refresh-token expiration reaches a save", async () => {
-    const authError = new ReauthorizationRequiredError();
-    createPlaylist.mockRejectedValue(authError);
-    const onAuthInvalidated = vi.fn();
-    const { result } = renderHook(() => useSpotify(true, onAuthInvalidated));
-
-    await act(async () => {
-      await expect(
-        result.current.createPlaylistFromTracks("Mix", tracks.slice(0, 1)),
-      ).rejects.toBe(authError);
-    });
-
-    expect(onAuthInvalidated).toHaveBeenCalledWith(authError);
+  it("reports a partial upload with the known playlist", async () => {
+    addItemsToPlaylist.mockRejectedValue(new Error("Upload failed"));
+    const { result } = renderHook(() => useSpotify("spotify", vi.fn()));
+    await act(async () => { await expect(result.current.createPlaylistFromTracks("Mix", realTracks())).rejects.toMatchObject({ stage: "add-items" }); });
+    expect(result.current.saveStatus.playlist.id).toBe("playlist-1");
+    expect(result.current.saveStatus.message).toMatch(/Check Spotify before retrying/);
+  });
+  it("invalidates expired authorization", async () => {
+    const error = new ReauthorizationRequiredError(), invalidated = vi.fn();
+    createPlaylist.mockRejectedValue(error);
+    const { result } = renderHook(() => useSpotify("spotify", invalidated));
+    await act(async () => { await expect(result.current.createPlaylistFromTracks("Mix", realTracks())).rejects.toBe(error); });
+    expect(invalidated).toHaveBeenCalledWith(error);
     expect(result.current.saveStatus).toBeNull();
   });
-
-  it("keeps search errors separate from save state", async () => {
-    searchTracks.mockRejectedValue(new Error("Search unavailable"));
-    const { result } = renderHook(() => useSpotify(true, vi.fn()));
-
+  it.each(["success", "failure"])("ignores stale search %s after resetting", async outcome => {
+    const pending = deferred();
+    searchTracks.mockReturnValueOnce(pending.promise);
+    const { result } = renderHook(() => useSpotify("spotify", vi.fn()));
+    let task;
+    act(() => { task = result.current.handleSearch("old"); });
+    act(() => result.current.resetSpotifyState());
     await act(async () => {
-      await result.current.handleSearch("Daft Punk");
+      if (outcome === "success") pending.resolve(realTracks());
+      else pending.reject(new Error("Old failure"));
+      await task;
     });
-
-    expect(result.current.searchError).toBe("Search unavailable");
-    expect(result.current.saveStatus).toBeNull();
+    expect(result.current.searchResults).toEqual([]);
+    expect(result.current.searchError).toBeNull();
     expect(result.current.isSearching).toBe(false);
+  });
+  it("does not let an old search's cleanup finish a new search", async () => {
+    const old = deferred(), fresh = deferred();
+    searchTracks.mockReturnValueOnce(old.promise).mockReturnValueOnce(fresh.promise);
+    const { result } = renderHook(() => useSpotify("spotify", vi.fn()));
+    let oldTask, freshTask;
+    act(() => { oldTask = result.current.handleSearch("old"); });
+    act(() => result.current.resetSpotifyState());
+    act(() => { freshTask = result.current.handleSearch("fresh"); });
+    await act(async () => { old.resolve(realTracks()); await oldTask; });
+    expect(result.current.isSearching).toBe(true);
+    await act(async () => { fresh.resolve([]); await freshTask; });
+    expect(result.current.isSearching).toBe(false);
+  });
+  it.each(["create", "batch"])("stops all later batches after logout during %s", async stage => {
+    const pending = deferred();
+    if (stage === "create") createPlaylist.mockReturnValue(pending.promise);
+    else addItemsToPlaylist.mockReturnValueOnce(pending.promise);
+    const { result } = renderHook(() => useSpotify("spotify", vi.fn()));
+    let task;
+    await act(async () => { task = result.current.createPlaylistFromTracks("Mix", realTracks(201)); await Promise.resolve(); });
+    const check = expect(task).rejects.toMatchObject({ code: "operation_cancelled" });
+    act(() => { result.current.resetSpotifyState(); logout(); });
+    await act(async () => { pending.resolve(stage === "create" ? { id: "old" } : { snapshot_id: "old" }); await check; });
+    expect(addItemsToPlaylist).toHaveBeenCalledTimes(stage === "create" ? 0 : 1);
+    expect(result.current.saveStatus).toBeNull();
+    expect(result.current.isSaving).toBe(false);
+  });
+  it("cancels save on unmount and rejects its stale completion", async () => {
+    const pending = deferred();
+    createPlaylist.mockReturnValue(pending.promise);
+    const { result, unmount } = renderHook(() => useSpotify("spotify", vi.fn()));
+    let task;
+    act(() => { task = result.current.createPlaylistFromTracks("Mix", realTracks()); });
+    const check = expect(task).rejects.toMatchObject({ code: "operation_cancelled" });
+    unmount();
+    pending.resolve({ id: "old" });
+    await check;
+    expect(addItemsToPlaylist).not.toHaveBeenCalled();
+  });
+  it("prevents same-tick double saving", async () => {
+    const pending = deferred();
+    createPlaylist.mockReturnValue(pending.promise);
+    const { result } = renderHook(() => useSpotify("spotify", vi.fn()));
+    let first;
+    act(() => { first = result.current.createPlaylistFromTracks("Mix", realTracks()); });
+    await expect(result.current.createPlaylistFromTracks("Mix", realTracks())).rejects.toThrow(/current operation/);
+    await act(async () => { pending.resolve({ id: "playlist" }); await first; });
+    expect(createPlaylist).toHaveBeenCalledTimes(1);
+  });
+  it("rejects fictional tracks before contacting Spotify", async () => {
+    const { result } = renderHook(() => useSpotify("spotify", vi.fn()));
+    await act(async () => { await expect(result.current.createPlaylistFromTracks("Mix", [{ source: "demo", id: "demo-1" }])).rejects.toThrow(/real Spotify tracks/); });
+    expect(createPlaylist).not.toHaveBeenCalled();
   });
 });
