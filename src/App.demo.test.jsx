@@ -1,0 +1,74 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import App from "./App";
+import { logout } from "./utils/spotifyAuth";
+import { deferred, jsonResponse, seedSession } from "./test/fixtures";
+
+describe("account-free demo and pre-login information", () => {
+  beforeEach(() => { logout(); vi.stubGlobal("fetch",vi.fn()); vi.stubEnv("VITE_SPOTIFY_CLIENT_ID",""); vi.stubEnv("VITE_SPOTIFY_REDIRECT_URI",""); });
+  it("lets a visitor search, select, remove, and simulate saving without Spotify", async () => {
+    const user=userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button",{name:"Try demo"}));
+    expect(screen.getByText(/fictional sample data; saving is simulated/)).toBeInTheDocument();
+    const search=screen.getByRole("textbox",{name:"Search fictional sample tracks"});
+    await user.type(search,"signal{Enter}");
+    await waitFor(() => expect(screen.getByText("4 tracks")).toBeInTheDocument());
+    await user.click(screen.getByRole("button",{name:/select glass horizon/i}));
+    expect(screen.getByRole("button",{name:/selected glass horizon/i})).toBeDisabled();
+    await user.click(screen.getByRole("button",{name:/remove glass horizon/i}));
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    await user.click(screen.getByRole("button",{name:/select glass horizon/i}));
+    await user.clear(screen.getByRole("textbox",{name:"Playlist name"}));
+    await user.type(screen.getByRole("textbox",{name:"Playlist name"}),"My Demo");
+    await user.click(screen.getByRole("button",{name:"Simulate save"}));
+    expect(await screen.findByRole("heading",{name:"Simulated playlist: My Demo"})).toBeInTheDocument();
+    expect(screen.getByText(/Nothing was sent to Spotify/)).toBeInTheDocument();
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(sessionStorage.length).toBe(0);
+    expect(localStorage.length).toBe(0);
+    expect(screen.queryByRole("link",{name:/Open.*Spotify/})).not.toBeInTheDocument();
+  });
+  it("shows public policies and requires an unchecked agreement before login", async () => {
+    const user=userEvent.setup();
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("button",{name:/Login with Spotify/})).toBeDisabled());
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(screen.getByRole("link",{name:"Privacy"})).toHaveAttribute("href","/privacy.html");
+    expect(screen.getByRole("link",{name:"Disconnect Spotify"})).toHaveAttribute("href","/disconnect.html");
+    await user.click(screen.getByRole("checkbox"));
+    expect(screen.getByRole("button",{name:/Login with Spotify/})).toBeEnabled();
+    await user.click(screen.getByRole("button",{name:/Login with Spotify/}));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/not configured/);
+    expect(screen.getByRole("button",{name:"Try demo"})).toBeEnabled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("exiting and re-entering demo resets the draft, name, results, and summary", async () => {
+    const user=userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button",{name:"Try demo"}));
+    await user.click(screen.getByRole("button",{name:/select glass horizon/i}));
+    await user.type(screen.getByRole("textbox",{name:"Playlist name"})," changed");
+    await user.click(screen.getByRole("button",{name:"Exit demo"}));
+    await user.click(screen.getByRole("button",{name:"Try demo"}));
+    expect(screen.getByRole("textbox",{name:"Playlist name"})).toHaveValue("New Playlist");
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    expect(screen.getByText("10 tracks")).toBeInTheDocument();
+  });
+  it("offers demo while startup refresh is pending and ignores its delayed completion", async () => {
+    vi.stubEnv("VITE_SPOTIFY_CLIENT_ID","test-client");
+    seedSession({expiresAt:0});
+    const pending=deferred();
+    fetch.mockReturnValue(pending.promise);
+    const user=userEvent.setup();
+    render(<App />);
+    expect(screen.getByRole("status")).toHaveTextContent(/Checking/);
+    await user.click(screen.getByRole("button",{name:"Try demo"}));
+    pending.resolve(jsonResponse({access_token:"stale",refresh_token:"stale-refresh",expires_in:3600}));
+    await waitFor(() => expect(screen.getByText(/fictional sample data/)).toBeInTheDocument());
+    expect(sessionStorage.getItem("spotify_access_token")).toBeNull();
+    expect(screen.queryByRole("button",{name:"Logout"})).not.toBeInTheDocument();
+  });
+});

@@ -1,0 +1,25 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+# Preserve the original OAuth callback URL and query string.
+# Policy pages and assets are real files and need no SPA fallback.
+[[redirects]]
+  from = "/callback"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+
+[[headers]]
+  for = "/callback"
+  [headers.values]
+    Cache-Control = "no-store"

@@ -29,6 +29,7 @@ function spotifyHook(overrides = {}) {
     isSaving: false,
     searchError: null,
     saveStatus: null,
+    retryDelay: 0,
     handleSearch: vi.fn(),
     createPlaylistFromTracks: vi.fn().mockResolvedValue({ id: "playlist-1" }),
     resetSpotifyState: vi.fn(),
@@ -76,5 +77,27 @@ describe("App playlist save behavior", () => {
       expect(screen.queryByRole("button", { name: /remove digital love/i })).not.toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: /create public playlist/i })).not.toBeInTheDocument();
+  });
+
+  it("does not clear a new draft when an old save finishes after logout and login", async () => {
+    let resolveOld;
+    const oldSave = new Promise(resolve => { resolveOld = resolve; });
+    useSpotify.mockReturnValue(spotifyHook({createPlaylistFromTracks:vi.fn(() => oldSave)}));
+    const user = userEvent.setup();
+    const {rerender} = render(<App />);
+    await user.click(screen.getByRole("button",{name:/select digital love/i}));
+    await user.click(screen.getByRole("button",{name:/create public playlist/i}));
+    const signedOut = {...useAuth.mock.results.at(-1).value,status:"unauthenticated",isAuthenticated:false};
+    useAuth.mockReturnValue(signedOut);
+    await user.click(screen.getByRole("button",{name:"Logout"}));
+    rerender(<App />);
+    expect(screen.getByRole("button",{name:"Try demo"})).toBeInTheDocument();
+    useAuth.mockReturnValue({...signedOut,status:"authenticated",isAuthenticated:true});
+    useSpotify.mockReturnValue(spotifyHook());
+    rerender(<App />);
+    await user.click(screen.getByRole("button",{name:/select digital love/i}));
+    resolveOld({id:"old-playlist"});
+    await waitFor(() => expect(screen.getByRole("button",{name:/remove digital love/i})).toBeInTheDocument());
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
   });
 });

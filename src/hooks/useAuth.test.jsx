@@ -11,6 +11,7 @@ function jsonResponse(body, status = 200) {
 
 describe("useAuth startup flow", () => {
   beforeEach(() => {
+    sessionStorage.setItem("jammming_terms_version", "2026-10-05-v1");
     vi.stubEnv("VITE_SPOTIFY_CLIENT_ID", "client-id");
     vi.stubEnv("VITE_SPOTIFY_REDIRECT_URI", "http://127.0.0.1:5173/callback");
     vi.stubGlobal("fetch", vi.fn());
@@ -35,7 +36,7 @@ describe("useAuth startup flow", () => {
     await waitFor(() => expect(result.current.status).toBe("authenticated"));
     expect(window.location.pathname).toBe("/callback");
     expect(window.location.search).toBe("");
-    expect(localStorage.getItem("spotify_access_token")).toBe("access-token");
+    expect(sessionStorage.getItem("spotify_access_token")).toBe("access-token");
     expect(sessionStorage.getItem("spotify_code_verifier")).toBeNull();
   });
 
@@ -53,8 +54,8 @@ describe("useAuth startup flow", () => {
   });
 
   it("prompts for reauthorization after startup refresh returns invalid_grant", async () => {
-    localStorage.setItem("spotify_refresh_token", "expired-refresh");
-    localStorage.setItem("spotify_auth_session_version", "2026-public-playlist-v1");
+    sessionStorage.setItem("spotify_refresh_token", "expired-refresh");
+    sessionStorage.setItem("spotify_auth_session_version", "2026-session-v2");
     fetch.mockResolvedValue(jsonResponse({
       error: "invalid_grant",
       error_description: "Refresh token expired",
@@ -65,6 +66,22 @@ describe("useAuth startup flow", () => {
     await waitFor(() => expect(result.current.status).toBe("unauthenticated"));
     expect(result.current.error).toMatch(/authorization has expired/i);
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(localStorage.getItem("spotify_refresh_token")).toBeNull();
+    expect(sessionStorage.getItem("spotify_refresh_token")).toBeNull();
+  });
+
+  it("reports token-storage failure after rolling back partial credentials", async () => {
+    sessionStorage.setItem("spotify_oauth_state","matching");
+    sessionStorage.setItem("spotify_code_verifier","verifier");
+    window.history.replaceState({},"","/callback?code=code&state=matching");
+    fetch.mockResolvedValue(jsonResponse({access_token:"access",refresh_token:"refresh",expires_in:3600}));
+    const original = sessionStorage.setItem;
+    vi.spyOn(sessionStorage,"setItem").mockImplementation((key,value) => {
+      if(key==="spotify_token_expires_at") throw new Error("blocked");
+      original(key,value);
+    });
+    const {result}=renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.status).toBe("unauthenticated"));
+    expect(result.current.error).toMatch(/storage is unavailable/);
+    expect(sessionStorage.getItem("spotify_access_token")).toBeNull();
   });
 });

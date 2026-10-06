@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
 
 function createMemoryStorage() {
   const values = new Map();
@@ -39,6 +39,9 @@ Object.defineProperty(globalThis, "sessionStorage", {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   localStorage.clear();
   sessionStorage.clear();
   window.history.replaceState({}, "", "/");
